@@ -1,0 +1,36 @@
+{
+  "name": "kvoice",
+  "version": "0.0.1",
+  "description": "KOOK v3 voice chat API implmentation in JavaScript",
+  "main": "dist/index",
+  "scripts": {
+    "build": "tsc && copyfiles -u 1 \"src/**/*\" -e \"src/**/*.ts\" dist",
+    "clean": "rimraf dist/*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hexona69/kvoice.js.git"
+  },
+  "keywords": [
+    "kvoice"
+  ],
+  "author": "Hexona",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Hexona69/kvoice.js/issues"
+  },
+  "homepage": "https://github.com/Hexona69/kvoice.js#readme",
+  "dependencies": {
+    "axios": "^1.2.1",
+    "delay": "^5.0.0",
+    "ffmpeg": "^0.0.4",
+    "fluent-ffmpeg": "^2.1.2",
+    "upath": "^2.0.1",
+    "websocket": "^1.0.34"
+  },
+  "devDependencies": {
+    "@types/ffmpeg": "^1.0.4",
+    "@types/fluent-ffmpeg": "^2.1.20",
+    "@types/websocket": "^1.0.5"
+  }
+}
