@@ -1,8 +1,8 @@
 {
   "name": "kvoice",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "KOOK v3 voice chat API implmentation in JavaScript",
-  "main": "dist/index",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc && copyfiles -u 1 \"src/**/*\" -e \"src/**/*.ts\" dist",
     "clean": "rimraf dist/*"
