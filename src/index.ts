@@ -9,13 +9,19 @@ import { exec } from 'child_process';
 
 import { Readable as ReadableStream } from "stream";
 
-export default class kvoice {
+export default class koice {
     token: string;
     rtpURL: string = "";
     haveURL: boolean = false;
     // channelId: string;
     constructor(tk: string) {
         this.token = tk;
+    }
+    async getrtpURL(): Promise<string> {
+        while (!this.haveURL) {
+            await delay(100);
+        }
+        return this.rtpURL;
     }
     async getGateway(channelId: string): Promise<string> {
         const res = await axios({
@@ -34,11 +40,13 @@ export default class kvoice {
     /**
      * Start streaming audio in the voice chat
      * @param stream readable stream or path to the audio file
+     * @param binary path to ffmpeg binary
      */
-    async startStream(stream: ReadableStream | string): Promise<void> {
+    async startStream(stream: ReadableStream | string, binary?: string): Promise<void> {
         while (!this.haveURL) {
             await delay(100);
         }
+        if (binary) ffmpeg.setFfmpegPath(binary);
         ffmpeg()
             .input(stream)
             .outputOption([
@@ -50,7 +58,7 @@ export default class kvoice {
             .audioChannels(2)
             .audioFrequency(48000)
             .outputFormat('tee')
-            .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}|test.opus`)
+            .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}`)
     }
     async connectWebSocket(channelId: string): Promise<void> {
         const gateway = await this.getGateway(channelId);
@@ -92,7 +100,6 @@ export default class kvoice {
                         current = 4;
                     } else if (current == 4) {
                         this.rtpURL = `rtp://${ip}:${port}?rtcpport=${rtcpPort}`;
-                        console.log(this.rtpURL);
                         this.haveURL = true;
                         current = 5;
                     }
