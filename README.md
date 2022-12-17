@@ -1,3 +1,3 @@
 ```typescript
-import kvoice from 'kvoice';
+import koice from 'koice';
 ```
