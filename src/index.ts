@@ -99,11 +99,11 @@ export default class koice {
         if (this.isServer && this.zmqPort) {
             // console.log(this.zmqPort);
             ffmpeg()
+                .input(stream)
                 .inputOption([
                     '-re',
                     '-nostats'
                 ])
-                .input(stream)
                 .audioCodec('libopus')
                 .audioBitrate('128k')
                 .outputFormat('mpegts')
