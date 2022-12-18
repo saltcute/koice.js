@@ -29,8 +29,9 @@ export default class koice {
 
     isClose: boolean = false;
     // channelId: string;
-    constructor(tk: string) {
+    constructor(tk: string, binary?: string) {
         this.token = tk;
+        if (binary) this.ffPath = binary;
         ffmpeg.setFfmpegPath(this.ffPath);
     }
     async getrtpURL(): Promise<string> {
@@ -97,7 +98,7 @@ export default class koice {
         console.log("===Start Playing===");
         if (this.isServer && this.zmqPort) {
             // console.log(this.zmqPort);
-            ffmpeg(stream)
+            ffmpeg()
                 .inputOption([
                     '-re',
                     '-nostats'
@@ -114,7 +115,7 @@ export default class koice {
             while (!this.haveURL) {
                 await delay(100);
             }
-            ffmpeg(stream)
+            ffmpeg()
                 .input(stream)
                 .outputOption([
                     '-map 0:a:0'
