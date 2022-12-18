@@ -3,7 +3,7 @@ import * as ws from 'websocket';
 import fs from 'fs';
 import crypto from 'crypto';
 import upath from 'upath';
-import ffmpeg from 'fluent-ffmpeg';
+import ffmpeg, { FfmpegCommand } from 'fluent-ffmpeg';
 import delay from 'delay';
 import { exec, ChildProcess } from 'child_process';
 
@@ -21,6 +21,7 @@ export default class koice {
 
     ffPath: string = "ffmpeg";
 
+    ffStream?: FfmpegCommand;
     isStreaming: boolean = false;
 
     haveWSConnection: boolean = false;
@@ -95,10 +96,10 @@ export default class koice {
             throw 'Another stream is still active';
         }
         this.isStreaming = true;
-        console.log("===Start Playing===");
+        // console.log("===Start Playing===");
         if (this.isServer && this.zmqPort) {
             // console.log(this.zmqPort);
-            ffmpeg()
+            this.ffStream = ffmpeg()
                 .input(stream)
                 .inputOption([
                     '-re',
@@ -115,7 +116,7 @@ export default class koice {
             while (!this.haveURL) {
                 await delay(100);
             }
-            ffmpeg()
+            this.ffStream = ffmpeg()
                 .input(stream)
                 .outputOption([
                     '-map 0:a:0'
@@ -132,8 +133,14 @@ export default class koice {
                 });
         }
     }
+    async stopStream() {
+        if (this.ffStream) {
+            this.ffStream.kill("SIGKILL");
+        }
+        this.isStreaming = false;
+    }
     async reset() {
-        await this.closeServer();
+        await this.close();
         this.rtpURL = "";
         this.haveURL = false;
         this.isServer = false;
@@ -231,6 +238,7 @@ export default class koice {
         this.haveWSConnection = false;
     }
     async close(): Promise<void> {
+        await this.stopStream();
         await this.closeServer();
         await this.disconnectWebSocket();
     }
