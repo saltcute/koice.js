@@ -62,8 +62,10 @@ export default class koice {
         if (this.isServer) {
             throw 'Server has already beem started';
         }
+        if (!this.zmqPort) {
+            this.zmqPort = await (await import('get-port')).default(({ port: 9514 }));
+        }
         this.isServer = true;
-        this.zmqPort = await (await import('get-port')).default(({ port: 9514 }));
         this.ffServer = exec([
             this.ffPath,
             "-re",
