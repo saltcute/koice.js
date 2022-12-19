@@ -1,6 +1,6 @@
-Before using this package, you confirm your understanding that, by using this package, you are **violating**
-- Section 3.2.3 or 3.2.5 of the [*KOOK Software Premission and Service Agreement*](https://www.kookapp.cn/protocol.html), and
-- Section *Data Information* or *Abusive Use* of [*KOOK Developer Privacy Policy*](https://developer.kookapp.cn/doc/privacy)
+Before using this package, you confirm you understand by using this package, you are **violating**
+- Section 3.2.3 or 3.2.5 of the [*KOOK Software Permission and Service Agreement*](https://www.kookapp.cn/protocol.html), and
+- Section *Data Information*, or *Abusive Use*, of the [*KOOK Developer Privacy Policy*](https://developer.kookapp.cn/doc/privacy)
 
 Your KOOK account could face penalty including, but not limited to, 
 - **restriction** to the access of developer tools and resources
