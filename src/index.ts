@@ -84,7 +84,7 @@ export default class koice {
         if (this.ffServer) {
             this.ffServer.kill();
             this.ffServer = undefined;
-            this.zmqPort = undefined;
+            // this.zmqPort = undefined;
         }
         this.isServer = false;
     }
@@ -146,7 +146,7 @@ export default class koice {
         this.rtpURL = "";
         this.haveURL = false;
         this.isServer = false;
-        this.zmqPort = undefined
+        // this.zmqPort = undefined
         this.ffPath = "ffmpeg";
         this.ffServer = undefined
         this.isStreaming = false;
