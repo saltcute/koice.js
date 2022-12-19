@@ -1,12 +1,12 @@
-Before using this package, you confirm your understanding that, by using this package, you are violating 
+Before using this package, you confirm your understanding that, by using this package, you are **violating**
 - Section 3.2.3 or 3.2.5 of the [*KOOK Software Premission and Service Agreement*](https://www.kookapp.cn/protocol.html), and
 - Section *Data Information* or *Abusive Use* of [*KOOK Developer Privacy Policy*](https://developer.kookapp.cn/doc/privacy)
 
 Your KOOK account could face penalty including, but not limited to, 
-- restriction to the access of developer tools and resources
-- suspension of user account
+- **restriction** to the access of developer tools and resources
+- **suspension** of user account
 
-Use this package at your own risk. No warranty is provided.
+Use this package at your own risk. **No warranties** are provided.
 
 ---
 
@@ -70,6 +70,6 @@ await client.startServer();
 
 You can refer to [kook-ongaku-play](https://github.com/Hexona69/kook-ongaku-play) for usage of this package in real world application.
 
-
+---
 
 © 2022 Hexona, [koice.js](https://github.com/Hexona69/koice.js) and [kook-ongaku-play](https://github.com/Hexona69/kook-ongaku-play), released under [the MIT license](https://github.com/Hexona69/koice.js/blob/main/LICENSE).
