@@ -84,7 +84,9 @@ export default class koice {
         if (this.ffServer) {
             this.ffServer.kill();
             this.ffServer = undefined;
+            this.zmqPort = undefined;
         }
+        this.isServer = false;
     }
     /**
      * Start streaming audio in the voice chat
@@ -236,6 +238,8 @@ export default class koice {
             this.wsClient = undefined;
         }
         this.haveWSConnection = false;
+        this.haveURL = false;
+        this.rtpURL = "";
     }
     async close(): Promise<void> {
         await this.stopStream();
