@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && copyfiles -u 1 \"src/**/*\" -e \"src/**/*.ts\" dist",
-    "clean": "rimraf dist/*"
+    "clean": "rimraf dist/*",
+    "test": "npm run clean && npm run build && tsc test.ts && node test.js"
   },
   "repository": {
     "type": "git",

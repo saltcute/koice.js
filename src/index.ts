@@ -135,7 +135,7 @@ export default class koice {
     }
     async stopStream() {
         if (this.ffStream) {
-            this.ffStream.kill("SIGKILL");
+            this.ffStream.kill("SIGSTOP");
         }
         this.isStreaming = false;
     }
