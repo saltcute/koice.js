@@ -9,7 +9,7 @@ import { exec, ChildProcess } from 'child_process';
 
 import { Readable as ReadableStream } from "stream";
 
-export default class koice {
+export default class Koice {
     token: string;
 
     rtpURL: string = "";
@@ -60,7 +60,7 @@ export default class koice {
             await delay(100);
         }
         if (this.isServer) {
-            throw 'Server has already beem started';
+            throw 'Server has already been started';
         }
         if (!this.zmqPort) {
             this.zmqPort = await (await import('get-port')).default(({ port: 9514 }));
@@ -136,6 +136,13 @@ export default class koice {
                     this.isStreaming = false;
                 });
         }
+        this.ffStream.on('error', () => {
+            if (this.isServer) {
+                this.stopStream();
+            } else {
+                this.close();
+            }
+        })
     }
     async stopStream() {
         if (this.ffStream) {
