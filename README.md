@@ -11,13 +11,14 @@ Use this package at your own risk. **No warranties** are provided.
 ---
 
 ```typescript
-import koice from 'koice';
+import Koice from 'koice';
 ```
 
 You must have `ffmpeg` in your PATH, or you can specify one
 
 ```typescript
-const client = new koice('Your KOOK bot token', '/path/to/your/ffmpeg/binary');
+const client = new Koice('Your KOOK bot token');
+// const client = new Koice('Your KOOK bot token', '/path/to/your/ffmpeg/binary');
 ```
 
 Connect to WebSocket and retrive RTP URL.
@@ -26,7 +27,7 @@ Connect to WebSocket and retrive RTP URL.
 client.connectWebSocket("8403799012661514");
 ```
 
-Start streaming with path to a file or a `stream.readable`;
+Start streaming with path to a file or a `stream.Readable`;
 
 ```typescript
 import * as fs from 'fs';
@@ -40,7 +41,7 @@ or
 await client.startStream('/path/to/music/file');
 ```
 
-You can also start a ZeroMQ server to be able to stream different files without disconnecting. You can do that by invoking `koice.startServer()` first, then start streaming.
+You can also start a ZeroMQ server to be able to stream different files without disconnecting. You can do that by invoking `Koice.startServer()` first, then start streaming.
 
 ```typescript
 await client.startServer();
@@ -68,8 +69,8 @@ client.connectWebSocket("1586400722913705");
 await client.startServer();
 ```
 
-You can refer to [kook-ongaku-play](https://github.com/Hexona69/kook-ongaku-play) for usage of this package in real world application.
+You can refer to [kook-arisa](https://github.com/Hexona69/kook-arisa) for usage of this package in real world application.
 
 ---
 
-© 2022 Hexona, [koice.js](https://github.com/Hexona69/koice.js) and [kook-ongaku-play](https://github.com/Hexona69/kook-ongaku-play), released under [the MIT license](https://github.com/Hexona69/koice.js/blob/main/LICENSE).
+© 2022-2023 Hexona, [Koice.js](https://github.com/Hexona69/Koice.js) and [kook-arisa](https://github.com/Hexona69/kook-arisa), released under [the MIT license](https://github.com/Hexona69/Koice.js/blob/main/LICENSE).
