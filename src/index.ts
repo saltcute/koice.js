@@ -20,7 +20,7 @@ export default class Koice {
     get ffStream() {
         return this._ffStream;
     }
-    private set ffStream(payload: typeof this._ffStream) {
+    private set ffStream(payload: FfmpegCommand | undefined) {
         this._ffStream = payload;
     }
     private isStreaming: boolean = false;
@@ -33,7 +33,7 @@ export default class Koice {
     get isClose() {
         return this._isClose;
     }
-    private set isClose(payload: typeof this._isClose) {
+    private set isClose(payload: boolean) {
         this._isClose = payload;
     }
     // channelId: string;
