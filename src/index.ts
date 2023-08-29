@@ -5,30 +5,37 @@ import crypto from 'crypto';
 import upath from 'upath';
 import ffmpeg, { FfmpegCommand } from 'fluent-ffmpeg';
 import delay from 'delay';
-import { exec, ChildProcess } from 'child_process';
 
 import { Readable as ReadableStream } from "stream";
 
 export default class Koice {
-    token: string;
+    private token: string;
 
-    rtpURL: string = "";
-    haveURL: boolean = false;
+    private rtpURL: string = "";
+    private haveURL: boolean = false;
 
-    ffServer?: ChildProcess;
-    isServer: boolean = false;
-    zmqPort?: number;
+    private ffPath: string = "ffmpeg";
 
-    ffPath: string = "ffmpeg";
-
-    ffStream?: FfmpegCommand;
-    isStreaming: boolean = false;
+    private _ffStream?: FfmpegCommand;
+    get ffStream() {
+        return this._ffStream;
+    }
+    private set ffStream(payload: typeof this._ffStream) {
+        this._ffStream = payload;
+    }
+    private isStreaming: boolean = false;
 
     haveWSConnection: boolean = false;
-    wsClient?: ws.client;
-    wsConnection?: ws.connection;
+    private wsClient?: ws.client;
+    private wsConnection?: ws.connection;
 
-    isClose: boolean = false;
+    _isClose: boolean = false;
+    get isClose() {
+        return this._isClose;
+    }
+    private set isClose(payload: typeof this._isClose) {
+        this._isClose = payload;
+    }
     // channelId: string;
     constructor(tk: string, binary?: string) {
         this.token = tk;
@@ -55,41 +62,6 @@ export default class Koice {
         // console.log(res);
         return res.data.data.gateway_url;
     }
-    async startServer(): Promise<void> {
-        while (!this.haveURL) {
-            await delay(100);
-        }
-        if (this.isServer) {
-            throw 'Server has already been started';
-        }
-        if (!this.zmqPort) {
-            this.zmqPort = await (await import('get-port')).default(({ port: 9514 }));
-        }
-        this.isServer = true;
-        this.ffServer = exec([
-            this.ffPath,
-            "-re",
-            "-loglevel level+info",
-            "-nostats",
-            "-stream_loop",
-            "-1",
-            `-i "zmq:tcp://127.0.0.1:${this.zmqPort}"`,
-            "-map 0:a:0",
-            "-acodec libopus",
-            "-ab 128k",
-            "-ac 2",
-            "-ar 48000",
-            `-f tee "[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}"`
-        ].join(" "));
-    }
-    async closeServer(): Promise<void> {
-        if (this.ffServer) {
-            this.ffServer.kill();
-            this.ffServer = undefined;
-            // this.zmqPort = undefined;
-        }
-        this.isServer = false;
-    }
     /**
      * Start streaming audio in the voice chat
      * @param stream readable stream or path to the audio file
@@ -101,47 +73,26 @@ export default class Koice {
         }
         this.isStreaming = true;
         // console.log("===Start Playing===");
-        if (this.isServer && this.zmqPort) {
-            // console.log(this.zmqPort);
-            this.ffStream = ffmpeg()
-                .input(stream)
-                .inputOption([
-                    '-re',
-                    '-nostats'
-                ])
-                .audioCodec('libopus')
-                .audioBitrate('128k')
-                .outputFormat('mpegts')
-                .save(`zmq:tcp://127.0.0.1:${this.zmqPort}`)
-                .on('end', () => {
-                    this.isStreaming = false;
-                });
-        } else {
-            while (!this.haveURL) {
-                await delay(100);
-            }
-            this.ffStream = ffmpeg()
-                .input(stream)
-                .outputOption([
-                    '-map 0:a:0'
-                ])
-                .withNativeFramerate()
-                .audioCodec('libopus')
-                .audioBitrate('128k')
-                .audioChannels(2)
-                .audioFrequency(48000)
-                .outputFormat('tee')
-                .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}`)
-                .on('end', () => {
-                    this.isStreaming = false;
-                });
+        while (!this.haveURL) {
+            await delay(100);
         }
+        this.ffStream = ffmpeg()
+            .input(stream)
+            .outputOption([
+                '-map 0:a:0'
+            ])
+            .withNativeFramerate()
+            .audioCodec('libopus')
+            .audioBitrate('128k')
+            .audioChannels(2)
+            .audioFrequency(48000)
+            .outputFormat('tee')
+            .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}`)
+            .on('end', () => {
+                this.isStreaming = false;
+            });
         this.ffStream.on('error', () => {
-            if (this.isServer) {
-                this.stopStream();
-            } else {
-                this.close();
-            }
+            this.close();
         })
     }
     async stopStream() {
@@ -154,10 +105,8 @@ export default class Koice {
         await this.close();
         this.rtpURL = "";
         this.haveURL = false;
-        this.isServer = false;
         // this.zmqPort = undefined
         this.ffPath = "ffmpeg";
-        this.ffServer = undefined
         this.isStreaming = false;
     }
     async connectWebSocket(channelId: string): Promise<void> {
@@ -252,7 +201,6 @@ export default class Koice {
     }
     async close(): Promise<void> {
         await this.stopStream();
-        await this.closeServer();
         await this.disconnectWebSocket();
         this.isClose = true;
     }
