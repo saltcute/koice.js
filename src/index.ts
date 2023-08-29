@@ -254,5 +254,6 @@ export default class Koice {
         await this.stopStream();
         await this.closeServer();
         await this.disconnectWebSocket();
+        this.isClose = true;
     }
 }
