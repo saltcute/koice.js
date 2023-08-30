@@ -88,16 +88,19 @@ export default class Koice {
             .audioFrequency(48000)
             .outputFormat('tee')
             .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}`)
-            .on('end', () => {
-                this.isStreaming = false;
-            });
-        this.ffStream.on('error', () => {
-            this.close();
-        })
+            .removeAllListeners('error')
+            .removeAllListeners('end')
+            .on('error', (e) => {
+                this.stop();
+            })
+            .on('end', (e) => {
+                this.stop();
+            })
     }
     stopStream() {
         if (this.ffStream) {
-            this.ffStream.kill("SIGSTOP");
+            this.ffStream.kill("SIGKILL");
+            delete this.ffStream
         }
         this.isStreaming = false;
     }
@@ -201,11 +204,19 @@ export default class Koice {
         this.haveURL = false;
         this.rtpURL = "";
     }
+    kill() {
+        return this.stopStream();
+    }
+    async stop() {
+        if (!this.isClose) {
+            this.isClose = true;
+            await this.disconnectWebSocket();
+            this.onclose();
+        }
+    }
     async close(): Promise<void> {
-        this.isClose = true;
-        this.stopStream();
-        await this.disconnectWebSocket();
-        this.onclose();
+        this.kill();
+        await this.stop();
     }
     public onclose: () => void = () => { };
 }
