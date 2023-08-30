@@ -95,7 +95,7 @@ export default class Koice {
             this.close();
         })
     }
-    async stopStream() {
+    stopStream() {
         if (this.ffStream) {
             this.ffStream.kill("SIGSTOP");
         }
@@ -167,9 +167,11 @@ export default class Koice {
             });
             connection.on('close', () => {
                 this.haveWSConnection = false;
+                this.close();
             })
             connection.on('error', (err) => {
                 this.haveWSConnection = false;
+                this.close();
                 throw err;
             })
         })
@@ -200,8 +202,10 @@ export default class Koice {
         this.rtpURL = "";
     }
     async close(): Promise<void> {
-        await this.stopStream();
-        await this.disconnectWebSocket();
         this.isClose = true;
+        this.stopStream();
+        await this.disconnectWebSocket();
+        this.onclose();
     }
+    public onclose: () => void = () => { };
 }
