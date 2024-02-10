@@ -67,7 +67,12 @@ export default class Koice {
      * @param stream readable stream or path to the audio file
      * @param binary path to ffmpeg binary
      */
-    async startStream(stream: ReadableStream | string): Promise<void> {
+    async startStream(stream: ReadableStream | string, options?: {
+        inputCodec?: string,
+        inputBitrate?: number,
+        inputChannels?: number,
+        inputFrequency?: number
+    }): Promise<void> {
         if (this.isStreaming) {
             throw 'Another stream is still active';
         }
@@ -76,14 +81,19 @@ export default class Koice {
         while (!this.haveURL) {
             await delay(100);
         }
-        this.ffStream = ffmpeg()
+        this.ffStream = ffmpeg();
+        if (options?.inputCodec) this.ffStream.audioCodec(options.inputCodec);
+        if (options?.inputBitrate) this.ffStream.audioBitrate(options.inputBitrate);
+        if (options?.inputChannels) this.ffStream.audioChannels(options.inputChannels);
+        if (options?.inputFrequency) this.ffStream.audioFrequency(options.inputFrequency);
+        this.ffStream
             .input(stream)
             .outputOption([
                 '-map 0:a:0'
             ])
             .withNativeFramerate()
             .audioCodec('libopus')
-            .audioBitrate('128k')
+            .audioBitrate('192k')
             .audioChannels(2)
             .audioFrequency(48000)
             .outputFormat('tee')
