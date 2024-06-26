@@ -122,8 +122,12 @@ export default class Koice {
         this.ffPath = "ffmpeg";
         this.isStreaming = false;
     }
-    async connectWebSocket(channelId: string): Promise<void> {
+    async connectWebSocket(channelId: string): Promise<boolean> {
         const gateway = await this.getGateway(channelId);
+        if (!gateway) {
+            await this.close();
+            return false;
+        }
         const msgJSON = JSON.parse(fs.readFileSync(upath.toUnix(upath.join(__dirname, "msg.json")), { encoding: "utf-8", flag: "r" }));
         var ip: string, port: string, rtcpPort: string;
         // console.log(gateway);
@@ -192,6 +196,7 @@ export default class Koice {
             throw err;
         })
         this.wsClient.connect(gateway);
+        return true;
     }
     async disconnectWebSocket(): Promise<void> {
         var closed = false;
