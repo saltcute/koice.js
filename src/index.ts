@@ -11,15 +11,15 @@ import Kasumi from "kasumi.js";
 
 export default class Koice {
     private client: Kasumi;
+    private targetChannelId: string;
 
     private streamUri?: string;
     private targetBirtate?: number;
-    private targetChannelId?: string;
 
     private stream: ReadableStream = new ReadableStream({
         read() {},
     });
-    push(chunk: Buffer) {
+    push(chunk: any) {
         this.stream.push(chunk);
     }
 
@@ -41,45 +41,48 @@ export default class Koice {
         this._isClose = payload;
     }
     private constructor(
-        token: string,
+        client: Kasumi<any>,
         targetChannelId: string,
         binary?: string
     ) {
-        this.client = new Kasumi({
-            token,
-            type: "websocket",
-        });
+        this.client = client;
         this.targetChannelId = targetChannelId;
         if (binary) this.ffPath = binary;
         ffmpeg.setFfmpegPath(this.ffPath);
     }
-    async create(
-        token: string,
+    static async create(
+        client: Kasumi<any>,
         targetChannelId: string,
+        options?: {
+            inputCodec?: string;
+            inputBitrate?: number;
+            inputChannels?: number;
+            inputFrequency?: number;
+        },
         binary?: string
-    ): Promise<Koice> {
-        const self = new Koice(token, targetChannelId, binary);
-        await self.startStream(targetChannelId);
-        return self;
+    ): Promise<Koice | null> {
+        const self = new Koice(client, targetChannelId, binary);
+        if (await self.startStream(options)) return self;
+        else return null;
     }
     /**
      * Start streaming audio in the voice chat
      * @param stream readable stream or path to the audio file
      * @param binary path to ffmpeg binary
      */
-    async startStream(
-        channelId: string,
-        options?: {
-            inputCodec?: string;
-            inputBitrate?: number;
-            inputChannels?: number;
-            inputFrequency?: number;
-        }
-    ): Promise<boolean> {
-        const { data, err } = await this.client.API.voice.join(channelId, {});
+    private async startStream(options?: {
+        inputCodec?: string;
+        inputBitrate?: number;
+        inputChannels?: number;
+        inputFrequency?: number;
+        forceRealSpeed?: boolean;
+    }): Promise<boolean> {
+        console.log(this.targetChannelId);
+        const { data, err } = await this.client.API.voice.join(
+            this.targetChannelId,
+            {}
+        );
         if (err) return false;
-        const streamUri = `[select=a:f=rtp:srrc=${data.audio_ssrc}:payload_type=${data.audio_pt}]rtp://${data.ip}:${data.port}?rtcpport=${data.rtcp_port}`;
-        const bitrate = data.bitrate;
 
         this.ffmpeg = ffmpeg();
         if (options?.inputCodec) this.ffmpeg.audioCodec(options.inputCodec);
@@ -89,48 +92,37 @@ export default class Koice {
             this.ffmpeg.audioChannels(options.inputChannels);
         if (options?.inputFrequency)
             this.ffmpeg.audioFrequency(options.inputFrequency);
+        this.ffmpeg.input(this.stream).outputOption(["-map 0:a:0"]);
+        if (options?.forceRealSpeed) this.ffmpeg.withNativeFramerate();
         this.ffmpeg
-            .input(this.stream)
-            .outputOption(["-map 0:a:0"])
-            .withNativeFramerate()
             .audioCodec("libopus")
-            .audioBitrate(data.bitrate)
+            .audioBitrate(`${Math.floor(data.bitrate / 1000)}k`)
             .audioChannels(2)
             .audioFrequency(48000)
             .outputFormat("tee")
-            .save(streamUri)
+            .save(
+                `[select=a:f=rtp:ssrc=${data.audio_ssrc}:payload_type=${data.audio_pt}]rtp://${data.ip}:${data.port}?rtcpport=${data.rtcp_port}`
+            )
             .removeAllListeners("error")
             .removeAllListeners("end")
-            .on("error", () => {
-                this.stop();
+            .on("error", (e) => {
+                this.close();
             })
-            .on("end", () => {
-                this.stop();
+            .on("end", (e) => {
+                this.close();
             });
         return true;
     }
-    stopStream() {
+    async close(): Promise<void> {
         if (this.ffmpeg) {
             this.ffmpeg.kill("SIGKILL");
             delete this.ffmpeg;
         }
-    }
-    async reset() {
-        await this.close();
-        this.ffPath = "ffmpeg";
-    }
-    kill() {
-        return this.stopStream();
-    }
-    async stop() {
         if (!this.isClose) {
             this.isClose = true;
+            await this.client.API.voice.leave(this.targetChannelId);
             this.onclose();
         }
-    }
-    async close(): Promise<void> {
-        this.kill();
-        await this.stop();
     }
     public onclose: () => void = () => {};
 }
