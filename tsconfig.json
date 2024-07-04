@@ -1,40 +1,31 @@
 {
     "compilerOptions": {
         "declaration": true,
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
-        "target": "es2020",
-        "module": "Node16",
-        "moduleResolution": "Node16",
+        "target": "ES2022",
+        "module": "node16",
+        "moduleResolution": "node16",
         "lib": [
-            "es2021"
+            "ES2022"
         ],
         "baseUrl": "./src",
+        "paths": {
+            "@ksm/*": [ "./*" ]
+        },
         "rootDirs": [
             "src"
         ],
         "outDir": "./dist",
-        // "outFile": "./dist/kbotify.js",
         "strict": true,
         "typeRoots": [
-            "./typings",
             "node_modules/@types"
         ],
-        // "paths": {
-        //     "kaiheila-bot-root": ["node_modules/kaiheila-bot-root"],
-        //     "kaiheila-bot-root/*": ["node_modules/kaiheila-bot-root/*"]
-        // },
         "esModuleInterop": true,
         "sourceMap": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },
     "include": [
-        // "./src/commands/shared/*.ts",
-        // "./src/utils/*.ts",
-        // "./src/index.ts",
         "./src/**/*.ts",
-        ".eslintrc.js"
     ],
     "exclude": [
         "./src/tests/*.ts"
