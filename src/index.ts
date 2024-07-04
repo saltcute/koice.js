@@ -1,10 +1,10 @@
-import axios from 'axios';
-import * as ws from 'websocket';
-import fs from 'fs';
-import crypto from 'crypto';
-import upath from 'upath';
-import ffmpeg, { FfmpegCommand } from 'fluent-ffmpeg';
-import delay from 'delay';
+import axios from "axios";
+import * as ws from "websocket";
+import fs from "fs";
+import crypto from "crypto";
+import upath from "upath";
+import ffmpeg, { FfmpegCommand } from "fluent-ffmpeg";
+import delay from "delay";
 
 import { Readable as ReadableStream } from "stream";
 
@@ -53,12 +53,12 @@ export default class Koice {
             url: "https://www.kookapp.cn/api/v3/gateway/voice",
             method: "GET",
             params: {
-                channel_id: channelId
+                channel_id: channelId,
             },
             headers: {
-                'Authorization': `Bot ${this.token}`
-            }
-        })
+                Authorization: `Bot ${this.token}`,
+            },
+        });
         // console.log(res);
         return res.data.data.gateway_url;
     }
@@ -67,14 +67,17 @@ export default class Koice {
      * @param stream readable stream or path to the audio file
      * @param binary path to ffmpeg binary
      */
-    async startStream(stream: ReadableStream | string, options?: {
-        inputCodec?: string,
-        inputBitrate?: number,
-        inputChannels?: number,
-        inputFrequency?: number
-    }): Promise<void> {
+    async startStream(
+        stream: ReadableStream | string,
+        options?: {
+            inputCodec?: string;
+            inputBitrate?: number;
+            inputChannels?: number;
+            inputFrequency?: number;
+        }
+    ): Promise<void> {
         if (this.isStreaming) {
-            throw 'Another stream is still active';
+            throw "Another stream is still active";
         }
         this.isStreaming = true;
         // console.log("===Start Playing===");
@@ -83,34 +86,35 @@ export default class Koice {
         }
         this.ffStream = ffmpeg();
         if (options?.inputCodec) this.ffStream.audioCodec(options.inputCodec);
-        if (options?.inputBitrate) this.ffStream.audioBitrate(options.inputBitrate);
-        if (options?.inputChannels) this.ffStream.audioChannels(options.inputChannels);
-        if (options?.inputFrequency) this.ffStream.audioFrequency(options.inputFrequency);
+        if (options?.inputBitrate)
+            this.ffStream.audioBitrate(options.inputBitrate);
+        if (options?.inputChannels)
+            this.ffStream.audioChannels(options.inputChannels);
+        if (options?.inputFrequency)
+            this.ffStream.audioFrequency(options.inputFrequency);
         this.ffStream
             .input(stream)
-            .outputOption([
-                '-map 0:a:0'
-            ])
+            .outputOption(["-map 0:a:0"])
             .withNativeFramerate()
-            .audioCodec('libopus')
-            .audioBitrate('192k')
+            .audioCodec("libopus")
+            .audioBitrate("192k")
             .audioChannels(2)
             .audioFrequency(48000)
-            .outputFormat('tee')
+            .outputFormat("tee")
             .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}`)
-            .removeAllListeners('error')
-            .removeAllListeners('end')
-            .on('error', (e) => {
+            .removeAllListeners("error")
+            .removeAllListeners("end")
+            .on("error", (e) => {
                 this.stop();
             })
-            .on('end', (e) => {
+            .on("end", (e) => {
                 this.stop();
-            })
+            });
     }
     stopStream() {
         if (this.ffStream) {
             this.ffStream.kill("SIGKILL");
-            delete this.ffStream
+            delete this.ffStream;
         }
         this.isStreaming = false;
     }
@@ -128,15 +132,20 @@ export default class Koice {
             await this.close();
             return false;
         }
-        const msgJSON = JSON.parse(fs.readFileSync(upath.toUnix(upath.join(__dirname, "msg.json")), { encoding: "utf-8", flag: "r" }));
+        const msgJSON = JSON.parse(
+            fs.readFileSync(upath.toUnix(upath.join(__dirname, "msg.json")), {
+                encoding: "utf-8",
+                flag: "r",
+            })
+        );
         var ip: string, port: string, rtcpPort: string;
         // console.log(gateway);
         this.wsClient = new ws.client();
-        this.wsClient.on('connectFailed', (err) => {
+        this.wsClient.on("connectFailed", (err) => {
             this.haveWSConnection = false;
             throw err;
-        })
-        this.wsClient.on('connect', (connection) => {
+        });
+        this.wsClient.on("connect", (connection) => {
             this.haveWSConnection = true;
             this.wsConnection = connection;
             // console.log("WebSocket connected");
@@ -144,8 +153,8 @@ export default class Koice {
             var current: number = 1;
             setInterval(() => {
                 connection.ping("");
-            }, 30 * 1000)
-            connection.on('message', (message) => {
+            }, 30 * 1000);
+            connection.on("message", (message) => {
                 if (message.type == "utf8") {
                     // console.log(message);
                     const data = JSON.parse(message.utf8Data);
@@ -174,27 +183,30 @@ export default class Koice {
                         this.rtpURL = `rtp://${ip}:${port}?rtcpport=${rtcpPort}`;
                         this.haveURL = true;
                         current = 5;
-                    }
-                    else {
-                        if (data.notification && data.method && data.method == "disconnect") {
+                    } else {
+                        if (
+                            data.notification &&
+                            data.method &&
+                            data.method == "disconnect"
+                        ) {
                             this.disconnectWebSocket();
                         }
                     }
                 }
             });
-            connection.on('close', () => {
+            connection.on("close", () => {
                 this.haveWSConnection = false;
                 this.close();
-            })
-            connection.on('error', (err) => {
+            });
+            connection.on("error", (err) => {
                 this.haveWSConnection = false;
                 this.close();
                 throw err;
-            })
-        })
-        this.wsClient.on('connectFailed', (err) => {
+            });
+        });
+        this.wsClient.on("connectFailed", (err) => {
             throw err;
-        })
+        });
         this.wsClient.connect(gateway);
         return true;
     }
@@ -202,10 +214,10 @@ export default class Koice {
         var closed = false;
         if (this.wsConnection) {
             this.wsConnection.removeAllListeners();
-            this.wsConnection.on('close', () => {
+            this.wsConnection.on("close", () => {
                 this.wsConnection = undefined;
                 closed = true;
-            })
+            });
             this.wsConnection.close();
             while (!closed) {
                 await delay(100);
@@ -233,5 +245,5 @@ export default class Koice {
         this.kill();
         await this.stop();
     }
-    public onclose: () => void = () => { };
+    public onclose: () => void = () => {};
 }
