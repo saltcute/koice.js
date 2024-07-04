@@ -1,6 +1,6 @@
 {
   "name": "koice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "KOOK v3 voice chat API implmentation in JavaScript",
   "main": "dist/index.js",
   "scripts": {
