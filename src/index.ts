@@ -7,27 +7,31 @@ import ffmpeg, { FfmpegCommand } from "fluent-ffmpeg";
 import delay from "delay";
 
 import { Readable as ReadableStream } from "stream";
+import Kasumi from "kasumi.js";
 
 export default class Koice {
-    private token: string;
+    private client: Kasumi;
 
-    private rtpURL: string = "";
-    private haveURL: boolean = false;
+    private streamUri?: string;
+    private targetBirtate?: number;
+    private targetChannelId?: string;
+
+    private stream: ReadableStream = new ReadableStream({
+        read() {},
+    });
+    push(chunk: Buffer) {
+        this.stream.push(chunk);
+    }
 
     private ffPath: string = "ffmpeg";
 
-    private _ffStream?: FfmpegCommand;
-    get ffStream() {
-        return this._ffStream;
+    private _ffmpeg?: FfmpegCommand;
+    get ffmpeg() {
+        return this._ffmpeg;
     }
-    private set ffStream(payload: FfmpegCommand | undefined) {
-        this._ffStream = payload;
+    private set ffmpeg(payload: FfmpegCommand | undefined) {
+        this._ffmpeg = payload;
     }
-    private isStreaming: boolean = false;
-
-    haveWSConnection: boolean = false;
-    private wsClient?: ws.client;
-    private wsConnection?: ws.connection;
 
     _isClose: boolean = false;
     get isClose() {
@@ -36,31 +40,27 @@ export default class Koice {
     private set isClose(payload: boolean) {
         this._isClose = payload;
     }
-    // channelId: string;
-    constructor(tk: string, binary?: string) {
-        this.token = tk;
+    private constructor(
+        token: string,
+        targetChannelId: string,
+        binary?: string
+    ) {
+        this.client = new Kasumi({
+            token,
+            type: "websocket",
+        });
+        this.targetChannelId = targetChannelId;
         if (binary) this.ffPath = binary;
         ffmpeg.setFfmpegPath(this.ffPath);
     }
-    async getrtpURL(): Promise<string> {
-        while (!this.haveURL) {
-            await delay(100);
-        }
-        return this.rtpURL;
-    }
-    async getGateway(channelId: string): Promise<string> {
-        const res = await axios({
-            url: "https://www.kookapp.cn/api/v3/gateway/voice",
-            method: "GET",
-            params: {
-                channel_id: channelId,
-            },
-            headers: {
-                Authorization: `Bot ${this.token}`,
-            },
-        });
-        // console.log(res);
-        return res.data.data.gateway_url;
+    async create(
+        token: string,
+        targetChannelId: string,
+        binary?: string
+    ): Promise<Koice> {
+        const self = new Koice(token, targetChannelId, binary);
+        await self.startStream(targetChannelId);
+        return self;
     }
     /**
      * Start streaming audio in the voice chat
@@ -68,168 +68,56 @@ export default class Koice {
      * @param binary path to ffmpeg binary
      */
     async startStream(
-        stream: ReadableStream | string,
+        channelId: string,
         options?: {
             inputCodec?: string;
             inputBitrate?: number;
             inputChannels?: number;
             inputFrequency?: number;
         }
-    ): Promise<void> {
-        if (this.isStreaming) {
-            throw "Another stream is still active";
-        }
-        this.isStreaming = true;
-        // console.log("===Start Playing===");
-        while (!this.haveURL) {
-            await delay(100);
-        }
-        this.ffStream = ffmpeg();
-        if (options?.inputCodec) this.ffStream.audioCodec(options.inputCodec);
+    ): Promise<boolean> {
+        const { data, err } = await this.client.API.voice.join(channelId, {});
+        if (err) return false;
+        const streamUri = `[select=a:f=rtp:srrc=${data.audio_ssrc}:payload_type=${data.audio_pt}]rtp://${data.ip}:${data.port}?rtcpport=${data.rtcp_port}`;
+        const bitrate = data.bitrate;
+
+        this.ffmpeg = ffmpeg();
+        if (options?.inputCodec) this.ffmpeg.audioCodec(options.inputCodec);
         if (options?.inputBitrate)
-            this.ffStream.audioBitrate(options.inputBitrate);
+            this.ffmpeg.audioBitrate(options.inputBitrate);
         if (options?.inputChannels)
-            this.ffStream.audioChannels(options.inputChannels);
+            this.ffmpeg.audioChannels(options.inputChannels);
         if (options?.inputFrequency)
-            this.ffStream.audioFrequency(options.inputFrequency);
-        this.ffStream
-            .input(stream)
+            this.ffmpeg.audioFrequency(options.inputFrequency);
+        this.ffmpeg
+            .input(this.stream)
             .outputOption(["-map 0:a:0"])
             .withNativeFramerate()
             .audioCodec("libopus")
-            .audioBitrate("192k")
+            .audioBitrate(data.bitrate)
             .audioChannels(2)
             .audioFrequency(48000)
             .outputFormat("tee")
-            .save(`[select=a:f=rtp:ssrc=1357:payload_type=100]${this.rtpURL}`)
+            .save(streamUri)
             .removeAllListeners("error")
             .removeAllListeners("end")
-            .on("error", (e) => {
+            .on("error", () => {
                 this.stop();
             })
-            .on("end", (e) => {
+            .on("end", () => {
                 this.stop();
             });
+        return true;
     }
     stopStream() {
-        if (this.ffStream) {
-            this.ffStream.kill("SIGKILL");
-            delete this.ffStream;
+        if (this.ffmpeg) {
+            this.ffmpeg.kill("SIGKILL");
+            delete this.ffmpeg;
         }
-        this.isStreaming = false;
     }
     async reset() {
         await this.close();
-        this.rtpURL = "";
-        this.haveURL = false;
-        // this.zmqPort = undefined
         this.ffPath = "ffmpeg";
-        this.isStreaming = false;
-    }
-    async connectWebSocket(channelId: string): Promise<boolean> {
-        const gateway = await this.getGateway(channelId);
-        if (!gateway) {
-            await this.close();
-            return false;
-        }
-        const msgJSON = JSON.parse(
-            fs.readFileSync(upath.toUnix(upath.join(__dirname, "msg.json")), {
-                encoding: "utf-8",
-                flag: "r",
-            })
-        );
-        var ip: string, port: string, rtcpPort: string;
-        // console.log(gateway);
-        this.wsClient = new ws.client();
-        this.wsClient.on("connectFailed", (err) => {
-            this.haveWSConnection = false;
-            throw err;
-        });
-        this.wsClient.on("connect", (connection) => {
-            this.haveWSConnection = true;
-            this.wsConnection = connection;
-            // console.log("WebSocket connected");
-            connection.send(JSON.stringify(msgJSON[1]));
-            var current: number = 1;
-            setInterval(() => {
-                connection.ping("");
-            }, 30 * 1000);
-            connection.on("message", (message) => {
-                if (message.type == "utf8") {
-                    // console.log(message);
-                    const data = JSON.parse(message.utf8Data);
-                    // console.log(`${current}: `);
-                    // console.dir(data, { depth: null });
-                    // console.log("");
-                    if (current == 1) {
-                        msgJSON[2].id = crypto.randomInt(1000000, 10000000);
-                        // msgJSON[2].data.displayName = "PlayTest#1";
-                        connection.send(JSON.stringify(msgJSON[2]));
-                        current = 2;
-                    } else if (current == 2) {
-                        msgJSON[3].id = crypto.randomInt(1000000, 10000000);
-                        connection.send(JSON.stringify(msgJSON[3]));
-                        current = 3;
-                    } else if (current == 3) {
-                        const transportId = data.data.id;
-                        ip = data.data.ip;
-                        port = data.data.port;
-                        rtcpPort = data.data.rtcpPort;
-                        msgJSON[4].id = crypto.randomInt(1000000, 10000000);
-                        msgJSON[4].data.transportId = transportId;
-                        connection.send(JSON.stringify(msgJSON[4]));
-                        current = 4;
-                    } else if (current == 4) {
-                        this.rtpURL = `rtp://${ip}:${port}?rtcpport=${rtcpPort}`;
-                        this.haveURL = true;
-                        current = 5;
-                    } else {
-                        if (
-                            data.notification &&
-                            data.method &&
-                            data.method == "disconnect"
-                        ) {
-                            this.disconnectWebSocket();
-                        }
-                    }
-                }
-            });
-            connection.on("close", () => {
-                this.haveWSConnection = false;
-                this.close();
-            });
-            connection.on("error", (err) => {
-                this.haveWSConnection = false;
-                this.close();
-                throw err;
-            });
-        });
-        this.wsClient.on("connectFailed", (err) => {
-            throw err;
-        });
-        this.wsClient.connect(gateway);
-        return true;
-    }
-    async disconnectWebSocket(): Promise<void> {
-        var closed = false;
-        if (this.wsConnection) {
-            this.wsConnection.removeAllListeners();
-            this.wsConnection.on("close", () => {
-                this.wsConnection = undefined;
-                closed = true;
-            });
-            this.wsConnection.close();
-            while (!closed) {
-                await delay(100);
-            }
-        }
-        if (this.wsClient) {
-            this.wsClient.removeAllListeners();
-            this.wsClient = undefined;
-        }
-        this.haveWSConnection = false;
-        this.haveURL = false;
-        this.rtpURL = "";
     }
     kill() {
         return this.stopStream();
@@ -237,7 +125,6 @@ export default class Koice {
     async stop() {
         if (!this.isClose) {
             this.isClose = true;
-            await this.disconnectWebSocket();
             this.onclose();
         }
     }
