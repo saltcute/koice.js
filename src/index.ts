@@ -77,7 +77,6 @@ export default class Koice {
         inputFrequency?: number;
         forceRealSpeed?: boolean;
     }): Promise<boolean> {
-        console.log(this.targetChannelId);
         const { data, err } = await this.client.API.voice.join(
             this.targetChannelId,
             {}
