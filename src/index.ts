@@ -1,15 +1,22 @@
-import axios from "axios";
-import * as ws from "websocket";
-import fs from "fs";
-import crypto from "crypto";
-import upath from "upath";
 import ffmpeg, { FfmpegCommand } from "fluent-ffmpeg";
-import delay from "delay";
 
 import { Readable as ReadableStream } from "stream";
 import Kasumi from "kasumi.js";
+import EventEmitter2 from "eventemitter2";
 
-export default class Koice {
+export interface RawEmisions {
+    close: (event?: any) => void;
+}
+
+export interface Koice extends EventEmitter2 {
+    on<T extends keyof RawEmisions>(event: T, listener: RawEmisions[T]): this;
+    emit<T extends keyof RawEmisions>(
+        event: T,
+        ...args: Parameters<RawEmisions[T]>
+    ): boolean;
+}
+
+export class Koice extends EventEmitter2 {
     private client: Kasumi;
     private targetChannelId: string;
 
@@ -45,10 +52,13 @@ export default class Koice {
         targetChannelId: string,
         binary?: string
     ) {
+        super();
         this.client = client;
         this.targetChannelId = targetChannelId;
         if (binary) this.ffPath = binary;
         ffmpeg.setFfmpegPath(this.ffPath);
+
+        this.on("close", this.onclose);
     }
     static async create(
         client: Kasumi<any>,
@@ -77,6 +87,8 @@ export default class Koice {
         inputFrequency?: number;
         forceRealSpeed?: boolean;
     }): Promise<boolean> {
+        this.isClose = false;
+
         const { data, err } = await this.client.API.voice.join(
             this.targetChannelId,
             {}
@@ -105,23 +117,28 @@ export default class Koice {
             .removeAllListeners("error")
             .removeAllListeners("end")
             .on("error", (e) => {
-                this.close();
+                this.close(e);
             })
             .on("end", (e) => {
-                this.close();
+                this.close(e);
             });
         return true;
     }
-    async close(): Promise<void> {
+    async close(reason?: any): Promise<void> {
         if (this.ffmpeg) {
             this.ffmpeg.kill("SIGKILL");
             delete this.ffmpeg;
         }
         if (!this.isClose) {
-            this.isClose = true;
             await this.client.API.voice.leave(this.targetChannelId);
-            this.onclose();
+            this.isClose = true;
+            this.emit("close", reason);
         }
     }
+    /**
+     * @deprecated
+     */
     public onclose: () => void = () => {};
 }
+
+export default Koice;
