@@ -16,6 +16,13 @@ export interface Koice extends EventEmitter2 {
     ): boolean;
 }
 
+export interface IStreamOptions {
+    rtcpMux?: boolean;
+    password?: string;
+    inputCodec?: string;
+    forceRealSpeed?: boolean;
+}
+
 export class Koice extends EventEmitter2 {
     private client: Kasumi;
     private targetChannelId: string;
@@ -65,21 +72,14 @@ export class Koice extends EventEmitter2 {
     static async create(
         client: Kasumi<any>,
         targetChannelId: string,
-        options?: {
-            inputCodec?: string;
-        },
+        options?: IStreamOptions,
         binary?: string
     ): Promise<Koice | null> {
         const self = new Koice(client, targetChannelId, binary);
         if (await self.startStream(options)) return self;
         else return null;
     }
-    private async startStream(options?: {
-        rtcpMux?: boolean;
-        password?: string;
-        inputCodec?: string;
-        forceRealSpeed?: boolean;
-    }): Promise<boolean> {
+    private async startStream(options?: IStreamOptions): Promise<boolean> {
         this.isClose = false;
 
         const { data, err } = await this.client.API.voice.join(
