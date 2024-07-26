@@ -20,9 +20,6 @@ export class Koice extends EventEmitter2 {
     private client: Kasumi;
     private targetChannelId: string;
 
-    private streamUri?: string;
-    private targetBirtate?: number;
-
     private stream: ReadableStream = new ReadableStream({
         read() {},
     });
@@ -78,6 +75,8 @@ export class Koice extends EventEmitter2 {
         else return null;
     }
     private async startStream(options?: {
+        rtcpMux?: boolean;
+        password?: string;
         inputCodec?: string;
         forceRealSpeed?: boolean;
     }): Promise<boolean> {
@@ -85,7 +84,10 @@ export class Koice extends EventEmitter2 {
 
         const { data, err } = await this.client.API.voice.join(
             this.targetChannelId,
-            {}
+            {
+                password: options?.password,
+                rtcpMux: options?.rtcpMux,
+            }
         );
         if (err) return false;
 
