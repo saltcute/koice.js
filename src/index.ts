@@ -60,14 +60,16 @@ export class Koice extends EventEmitter2 {
 
         this.on("close", this.onclose);
     }
+    /**
+     * Start streaming audio in the voice chat
+     * @param targetChannelId voice channel to stream to
+     * @param binary path to ffmpeg binary
+     */
     static async create(
         client: Kasumi<any>,
         targetChannelId: string,
         options?: {
             inputCodec?: string;
-            inputBitrate?: number;
-            inputChannels?: number;
-            inputFrequency?: number;
         },
         binary?: string
     ): Promise<Koice | null> {
@@ -75,16 +77,8 @@ export class Koice extends EventEmitter2 {
         if (await self.startStream(options)) return self;
         else return null;
     }
-    /**
-     * Start streaming audio in the voice chat
-     * @param stream readable stream or path to the audio file
-     * @param binary path to ffmpeg binary
-     */
     private async startStream(options?: {
         inputCodec?: string;
-        inputBitrate?: number;
-        inputChannels?: number;
-        inputFrequency?: number;
         forceRealSpeed?: boolean;
     }): Promise<boolean> {
         this.isClose = false;
@@ -96,16 +90,12 @@ export class Koice extends EventEmitter2 {
         if (err) return false;
 
         this.ffmpeg = ffmpeg();
-        if (options?.inputCodec) this.ffmpeg.audioCodec(options.inputCodec);
-        if (options?.inputBitrate)
-            this.ffmpeg.audioBitrate(options.inputBitrate);
-        if (options?.inputChannels)
-            this.ffmpeg.audioChannels(options.inputChannels);
-        if (options?.inputFrequency)
-            this.ffmpeg.audioFrequency(options.inputFrequency);
-        this.ffmpeg.input(this.stream).outputOption(["-map 0:a:0"]);
+        this.ffmpeg.input(this.stream);
+        // if (options?.inputCodec)
+        //     this.ffmpeg.addInputOptions(`-acodec ${options.inputCodec}`);
         if (options?.forceRealSpeed) this.ffmpeg.withNativeFramerate();
         this.ffmpeg
+            .outputOption(["-map 0:a:0"])
             .audioCodec("libopus")
             .audioBitrate(`${Math.floor(data.bitrate / 1000)}k`)
             .audioChannels(2)
