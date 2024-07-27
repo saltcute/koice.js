@@ -1,7 +1,7 @@
 {
   "name": "koice",
-  "version": "1.2.1",
-  "description": "KOOK v3 voice chat API implmentation in JavaScript",
+  "version": "1.2.2",
+  "description": "KOOK voice channel SDK",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc && tsconfig-replace-paths -p tsconfig.json -s ./src -o ./dist",
