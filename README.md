@@ -1,14 +1,8 @@
-Before using this package, you confirm you understand by using this package, you are **violating**
-- Section 3.2.3 or 3.2.5 of the [*KOOK Software Permission and Service Agreement*](https://www.kookapp.cn/protocol.html), and
-- Section *Data Information*, or *Abusive Use*, of the [*KOOK Developer Privacy Policy*](https://developer.kookapp.cn/doc/privacy)
+# koice.js
 
-Your KOOK account could face penalty including, but not limited to, 
-- **restriction** to the access of developer tools and resources
-- **suspension** of user account
+Node.js SDK to stream audio content to a KOOK voice channel.
 
-Use this package at your own risk. **No warranties** are provided.
-
----
+## How to use
 
 ```typescript
 import Koice from 'koice';
@@ -17,60 +11,62 @@ import Koice from 'koice';
 You must have `ffmpeg` in your PATH, or you can specify one
 
 ```typescript
-const client = new Koice('Your KOOK bot token');
-// const client = new Koice('Your KOOK bot token', '/path/to/your/ffmpeg/binary');
-```
+const kasumi = new Kasumi({
+    type: "websocket",
+    token: "Your KOOK bot token",
+})
+const koice = await Koice.create(kasumi, "Id of the channel to stream to", {
+    // all entries are optional
 
-Connect to WebSocket and retrive RTP URL.
+    // password to the channel if exists
+    password: "12345678"
+    // use the same port and socket for both RTP and RTCP
+    // issues may occur if set to true
+    rtcpMux: false,
+    // apply factor to official defined bitrate for the voice channel
+    // use smaller value to avoid being kicked for overrate
+    bitrateFactor: 0.9,
+    // force koice.js to stream realtime
+    // required if not pushing audio contents at appropriate rate (eg. entire track at once)
+    forceRealSpeed: false
+});
+```
 
 ```typescript
-client.connectWebSocket("8403799012661514");
-```
+const fileHead: Buffer = ...;
+const chunk: Buffer = ...;
+// IMPORTANT: push file head separately first
+// this will be used to determine your file format
+// when reconnecting to the channel once network problems occured
+koice.push(fileHead);
 
-Start streaming with path to a file or a `stream.Readable`;
+// starts pushing the rest of your audio file
+koice.push(chunk);
+```
 
 ```typescript
 import * as fs from 'fs';
-const stream = fs.createReadStream('/path/to/music/file');
-await client.startStream(stream);
+
+const kasumi = new Kasumi({
+    type: "websocket",
+    token: "Your KOOK bot token",
+})
+const koice = await Koice.create(kasumi, "Id of the channel to stream to", {
+    password: "12345678"
+    rtcpMux: false,
+    bitrateFactor: 0.9,
+    forceRealSpeed: false
+});
+
+const fileHead: Buffer = ...;
+const chunk: Buffer = ...;
+
+koice.push(fileHead);
+koice.push(chunk);
 ```
 
-or 
-
-```typescript
-await client.startStream('/path/to/music/file');
-```
-
-You can also start a ZeroMQ server to be able to stream different files without disconnecting. You can do that by invoking `Koice.startServer()` first, then start streaming.
-
-```typescript
-await client.startServer();
-await client.startStream('/path/to/music/file');
-```
-
-And you can also close the ZeroMQ server without stopping the stream, to switch voice channel without streaming again.
-
-```typescript
-import * as fs from 'fs';
-
-const stream = fs.createReadStream('/path/to/music/file');
-
-client.connectWebSocket("8591468140337193");
-await client.startServer();
-
-await client.startStream(stream);
-
-await delay(1000);
-
-await client.closeServer();
-await client.disconnectWebSocket();
-
-client.connectWebSocket("1586400722913705");
-await client.startServer();
-```
-
-You can refer to [kook-arisa](https://github.com/Hexona69/kook-arisa) for usage of this package in real world application.
+You can refer to [kook-arisa](https://github.com/saltcute/kook-arisa) for usage of this package in real world application.
 
 ---
 
-© 2022-2023 Hexona, [Koice.js](https://github.com/Hexona69/Koice.js) and [kook-arisa](https://github.com/Hexona69/kook-arisa), released under [the MIT license](https://github.com/Hexona69/Koice.js/blob/main/LICENSE).
+© 2022-2024 salt, [Koice.js](https://github.com/saltcute/Koice.js) and [kook-arisa](https://github.com/saltcute/kook-arisa), released under [the MIT license](https://github.com/saltcute/Koice.js/blob/main/LICENSE).
