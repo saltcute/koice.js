@@ -1,6 +1,6 @@
 {
   "name": "koice",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "KOOK voice channel SDK",
   "main": "dist/index.js",
   "scripts": {
@@ -24,6 +24,7 @@
   "homepage": "https://github.com/Hexona69/koice.js#readme",
   "dependencies": {
     "axios": "^1.2.1",
+    "bunyan": "^1.8.15",
     "delay": "^5.0.0",
     "eventemitter2": "^6.4.9",
     "ffmpeg": "^0.0.4",
@@ -38,6 +39,7 @@
     "websocket": "^1.0.34"
   },
   "devDependencies": {
+    "@types/bunyan": "^1.8.11",
     "@types/ffmpeg": "^1.0.4",
     "@types/fluent-ffmpeg": "^2.1.20",
     "@types/websocket": "^1.0.5"
