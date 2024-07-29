@@ -3,6 +3,7 @@ import ffmpeg, { FfmpegCommand } from "fluent-ffmpeg";
 import { Readable as ReadableStream } from "stream";
 import Kasumi, { SystemMessageEvent } from "kasumi.js";
 import EventEmitter2 from "eventemitter2";
+import Logger from "bunyan";
 
 export interface RawEmisions {
     close: (event?: any) => void;
@@ -36,20 +37,25 @@ export interface IUserLeaveVoiceChannelEventExtra {
 export class Koice extends EventEmitter2 {
     private client: Kasumi;
     private targetChannelId: string;
+    private logger: Logger;
 
     private stream: ReadableStream = new ReadableStream({
         read() {},
     });
     private fileHead?: any;
-    push(chunk: any) {
-        if (!this.fileHead) this.fileHead = chunk;
+    public setFileHead(chunk: any) {
+        this.fileHead = chunk;
         this.stream.push(chunk);
+    }
+    push(chunk: any) {
+        if (!this.fileHead) this.setFileHead(chunk);
+        else this.stream.push(chunk);
     }
 
     private ffPath: string = "ffmpeg";
 
     private _ffmpeg?: FfmpegCommand;
-    get ffmpeg() {
+    public get ffmpeg() {
         return this._ffmpeg;
     }
     private set ffmpeg(payload: FfmpegCommand | undefined) {
@@ -74,7 +80,8 @@ export class Koice extends EventEmitter2 {
         if (binary) this.ffPath = binary;
         ffmpeg.setFfmpegPath(this.ffPath);
 
-        this.client.on("event.system", this.disconnectionHandler);
+        this.logger = this.client.getLogger("koice");
+
         this.on("close", this.onclose);
     }
     private streamOptions?: IStreamOptions;
@@ -98,6 +105,7 @@ export class Koice extends EventEmitter2 {
         else return null;
     }
     private async startStream(): Promise<boolean> {
+        this.client.on("event.system", this.disconnectionHandler);
         this.isClose = false;
 
         const { data, err } = await this.client.API.voice.join(
@@ -110,17 +118,26 @@ export class Koice extends EventEmitter2 {
         if (err) return false;
 
         this.ffmpeg = ffmpeg();
+        this.stream = new ReadableStream({
+            read() {},
+        });
+        console.log(`has file head? ${this.fileHead ? "true" : "false"}`);
+        if (this.fileHead) this.push(this.fileHead);
         this.ffmpeg.input(this.stream);
         if (this.streamOptions?.inputCodec)
             this.ffmpeg.inputFormat(this.streamOptions.inputCodec);
         if (this.streamOptions?.forceRealSpeed)
             this.ffmpeg.withNativeFramerate();
+        const bitrateString = `${Math.floor((data.bitrate / 1000) * (this.streamOptions?.bitrateFactor || 1))}k`;
         this.ffmpeg
-            .outputOption(["-map 0:a:0"])
+            .outputOption([
+                "-map 0:a:0",
+                "-vbr constrained",
+                "-frame_size 960",
+                `-maxrate ${bitrateString}`,
+            ])
             .audioCodec("libopus")
-            .audioBitrate(
-                `${Math.floor((data.bitrate / 1000) * (this.streamOptions?.bitrateFactor || 1))}k`
-            )
+            .audioBitrate(bitrateString)
             .audioChannels(2)
             .audioFrequency(48000)
             .outputFormat("tee")
@@ -129,13 +146,19 @@ export class Koice extends EventEmitter2 {
             )
             .removeAllListeners("error")
             .removeAllListeners("end")
+            .removeAllListeners("exit")
+            .on("exit", () => {
+                this.logger.debug("ffmpeg process exited");
+            })
             .on("error", (e) => {
-                this.close(e);
+                this.retry(e);
             })
             .on("end", (e) => {
-                this.close(e);
+                this.retry(e);
+            })
+            .on("close", (e) => {
+                this.retry(e);
             });
-        if (this.fileHead) this.push(this.fileHead);
         return true;
     }
     private disconnectionHandler = async (event: SystemMessageEvent) => {
@@ -143,14 +166,44 @@ export class Koice extends EventEmitter2 {
             const extra: IUserLeaveVoiceChannelEventExtra =
                 event.rawEvent.extra;
             if (extra.body.user_id == this.client.me.userId) {
-                return this.startStream();
+                this.retry("Extied voice channel unexpectedly");
             }
         }
-        return false;
     };
+    private async retry(reason: any) {
+        this.logger.error(reason.toString().split("\n")[0]);
+        if (this.ffmpeg) {
+            this.ffmpeg
+                .removeAllListeners("exit")
+                .removeAllListeners("close")
+                .removeAllListeners("error")
+                .removeAllListeners("end")
+                .on("exit", () => {})
+                .on("close", () => {})
+                .on("error", () => {})
+                .on("end", () => {})
+                .kill("SIGINT");
+            delete this.ffmpeg;
+        }
+        if (!this.isClose) {
+            this.client.off("event.system", this.disconnectionHandler);
+            await this.client.API.voice.leave(this.targetChannelId);
+            this.isClose = true;
+        }
+        this.startStream();
+    }
     async close(reason?: any): Promise<void> {
         if (this.ffmpeg) {
-            this.ffmpeg.kill("SIGKILL");
+            this.ffmpeg
+                .removeAllListeners("exit")
+                .removeAllListeners("close")
+                .removeAllListeners("error")
+                .removeAllListeners("end")
+                .on("exit", () => {})
+                .on("close", () => {})
+                .on("error", () => {})
+                .on("end", () => {})
+                .kill("SIGINT");
             delete this.ffmpeg;
         }
         if (!this.isClose) {
