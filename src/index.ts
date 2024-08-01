@@ -43,11 +43,23 @@ export class Koice extends EventEmitter2 {
         read() {},
     });
     private fileHead?: any;
+
+    /**
+     * Set file header so that ffmpeg understand the format of the audio data.
+     *
+     * @param chunk Any buffer-like file header data.
+     */
     public setFileHead(chunk: any) {
         this.fileHead = chunk;
         this.stream.push(chunk);
     }
-    push(chunk: any) {
+
+    /**
+     * Push audio data to koice.
+     *
+     * @param chunk Any buffer-like audio data.
+     */
+    public push(chunk: any) {
         if (!this.fileHead) this.setFileHead(chunk);
         else this.stream.push(chunk);
     }
@@ -55,14 +67,25 @@ export class Koice extends EventEmitter2 {
     private ffPath: string = "ffmpeg";
 
     private _ffmpeg?: FfmpegCommand;
+
+    /**
+     * Get the ffmpeg instance.
+     */
     public get ffmpeg() {
         return this._ffmpeg;
     }
+
     private set ffmpeg(payload: FfmpegCommand | undefined) {
         this._ffmpeg = payload;
     }
 
     _isClose: boolean = false;
+
+    /**
+     * Get whether koice is closed.
+     *
+     * @returns True if closed.
+     */
     get isClose() {
         return this._isClose;
     }
@@ -85,13 +108,23 @@ export class Koice extends EventEmitter2 {
         this.on("close", this.onclose);
     }
     private streamOptions?: IStreamOptions;
+
+    /**
+     * Set koice stream options.
+     *
+     * @param options Koice stream options.
+     */
     public setStreamOptions(options?: IStreamOptions) {
         this.streamOptions = options;
     }
+
     /**
      * Start streaming audio in the voice chat
-     * @param targetChannelId voice channel to stream to
-     * @param binary path to ffmpeg binary
+     *
+     * @param client Kasumi.js instance.
+     * @param targetChannelId The voice channel to stream to.
+     * @param options Koice stream options.
+     * @param binary The path to a specific ffmpeg binary to use.
      */
     static async create(
         client: Kasumi<any>,
@@ -199,7 +232,13 @@ export class Koice extends EventEmitter2 {
             this.startStream();
         }
     }
-    async close(reason?: any): Promise<void> {
+
+    /**
+     * Close koice.
+     *
+     * @param reason The reason to close.
+     */
+    public async close(reason?: any): Promise<void> {
         if (await this.endStream()) {
             this.emit("close", reason);
         }
