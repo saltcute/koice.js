@@ -28,17 +28,26 @@ const koice = await Koice.create(kasumi, "Id of the channel to stream to", {
     bitrateFactor: 0.9,
     // force koice.js to stream realtime
     // required if not pushing audio contents at appropriate rate (eg. entire track at once)
-    forceRealSpeed: false
+    forceRealSpeed: false,
+    // make koice use a specific ffmpeg binary
+    binary: "/path/to/ffmpeg"
 });
 ```
 
 ```typescript
 const fileHead: Buffer = ...;
 const chunk: Buffer = ...;
-// IMPORTANT: push file head separately first
-// this will be used to determine your file format
-// when reconnecting to the channel once network problems occured
-koice.push(fileHead);
+
+/**
+ * IMPORTANT: set file head separately first
+ * this will be used to determine your file format
+ * when reconnecting to the channel once network problems occured,
+ * 
+ * or alternatively push file head directly.
+ * `koice.push(fileHead);`
+ * i.e. the first chunk that was pushed will be saved as file head.
+ */
+koice.setFilehead(fileHead);
 
 // starts pushing the rest of your audio file
 koice.push(chunk);
@@ -61,7 +70,17 @@ const koice = await Koice.create(kasumi, "Id of the channel to stream to", {
 const fileHead: Buffer = ...;
 const chunk: Buffer = ...;
 
-koice.push(fileHead);
+/**
+ * IMPORTANT: set file head separately first
+ * this will be used to determine your file format
+ * when reconnecting to the channel once network problems occured,
+ * 
+ * or alternatively push file head directly.
+ * `koice.push(fileHead);`
+ * i.e. the first chunk that was pushed will be saved as file head.
+ */
+koice.setFilehead(fileHead);
+
 koice.push(chunk);
 ```
 
