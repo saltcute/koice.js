@@ -116,6 +116,9 @@ export class Koice extends EventEmitter2 {
      */
     public setStreamOptions(options?: IStreamOptions) {
         this.streamOptions = options;
+        if (this.streamOptions && this.streamOptions.rtcpMux == undefined) {
+            this.streamOptions.rtcpMux = true;
+        }
     }
 
     /**
@@ -150,7 +153,7 @@ export class Koice extends EventEmitter2 {
         );
         if (err) return false;
 
-        this.ffmpeg = ffmpeg();
+        this.ffmpeg = ffmpeg().addOption("-hide_banner", "-loglevel fatal");
         this.stream = new ReadableStream({
             read() {},
         });
@@ -177,7 +180,7 @@ export class Koice extends EventEmitter2 {
             .audioFrequency(48000)
             .outputFormat("tee")
             .save(
-                `[select=a:f=rtp:ssrc=${data.audio_ssrc}:payload_type=${data.audio_pt}]rtp://${data.ip}:${data.port}?rtcpport=${data.rtcp_port}`
+                `[select=a:f=rtp:ssrc=${data.audio_ssrc}:payload_type=${data.audio_pt}]rtp://${data.ip}:${data.port}${this.streamOptions?.rtcpMux ? "" : `?rtcpport=${data.rtcp_port}`}`
             )
             .removeAllListeners("error")
             .removeAllListeners("end")
