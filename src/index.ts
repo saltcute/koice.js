@@ -121,7 +121,9 @@ export class Koice extends EventEmitter2 {
         this.stream = new ReadableStream({
             read() {},
         });
-        console.log(`has file head? ${this.fileHead ? "true" : "false"}`);
+        this.logger.debug(
+            `started streaming with${this.fileHead ? "" : "out"} file head`
+        );
         if (this.fileHead) this.push(this.fileHead);
         this.ffmpeg.input(this.stream);
         if (this.streamOptions?.inputCodec)
@@ -166,50 +168,39 @@ export class Koice extends EventEmitter2 {
             const extra: IUserLeaveVoiceChannelEventExtra =
                 event.rawEvent.extra;
             if (extra.body.user_id == this.client.me.userId) {
-                this.retry("Extied voice channel unexpectedly");
+                this.retry("Recieved exit voice channel event unexpectedly");
             }
         }
     };
-    private async retry(reason: any) {
-        this.logger.error(reason.toString().split("\n")[0]);
-        if (this.ffmpeg) {
-            this.ffmpeg
-                .removeAllListeners("exit")
-                .removeAllListeners("close")
-                .removeAllListeners("error")
-                .removeAllListeners("end")
-                .on("exit", () => {})
-                .on("close", () => {})
-                .on("error", () => {})
-                .on("end", () => {})
-                .kill("SIGINT");
-            delete this.ffmpeg;
-        }
+    private async endStream(): Promise<boolean> {
         if (!this.isClose) {
+            this.isClose = true;
+            if (this.ffmpeg) {
+                this.ffmpeg
+                    .removeAllListeners("exit")
+                    .removeAllListeners("close")
+                    .removeAllListeners("error")
+                    .removeAllListeners("end")
+                    .on("exit", () => {})
+                    .on("close", () => {})
+                    .on("error", () => {})
+                    .on("end", () => {})
+                    .kill("SIGKILL");
+                delete this.ffmpeg;
+            }
             this.client.off("event.system", this.disconnectionHandler);
             await this.client.API.voice.leave(this.targetChannelId);
-            this.isClose = true;
+            return true;
         }
-        this.startStream();
+        return false;
+    }
+    private async retry(reason: any) {
+        if (await this.endStream()) {
+            this.startStream();
+        }
     }
     async close(reason?: any): Promise<void> {
-        if (this.ffmpeg) {
-            this.ffmpeg
-                .removeAllListeners("exit")
-                .removeAllListeners("close")
-                .removeAllListeners("error")
-                .removeAllListeners("end")
-                .on("exit", () => {})
-                .on("close", () => {})
-                .on("error", () => {})
-                .on("end", () => {})
-                .kill("SIGINT");
-            delete this.ffmpeg;
-        }
-        if (!this.isClose) {
-            this.client.off("event.system", this.disconnectionHandler);
-            await this.client.API.voice.leave(this.targetChannelId);
-            this.isClose = true;
+        if (await this.endStream()) {
             this.emit("close", reason);
         }
     }
