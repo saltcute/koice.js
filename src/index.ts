@@ -165,7 +165,7 @@ export class Koice extends EventEmitter2 {
         this.keepAliveTask();
         if (err) return false;
 
-        this.ffmpeg = ffmpeg().addOption("-hide_banner", "-loglevel fatal");
+        this.ffmpeg = ffmpeg();
         this.stream = new ReadableStream({
             read() {},
         });
@@ -181,6 +181,8 @@ export class Koice extends EventEmitter2 {
         const bitrateString = `${Math.floor((data.bitrate / 1000) * (this.streamOptions?.bitrateFactor || 1))}k`;
         this.ffmpeg
             .outputOption([
+                "-hide_banner",
+                "-loglevel fatal",
                 "-map 0:a:0",
                 "-vbr constrained",
                 "-frame_size 960",
@@ -220,9 +222,13 @@ export class Koice extends EventEmitter2 {
             }
         }
     };
-    private async endStream(): Promise<boolean> {
+    private async endStream(
+        reason?: any,
+        unexpected = false
+    ): Promise<boolean> {
         if (!this.isClose) {
             this.isClose = true;
+            this.client.off("event.system", this.disconnectionHandler);
             if (this.ffmpeg) {
                 this.ffmpeg
                     .removeAllListeners("exit")
@@ -236,14 +242,26 @@ export class Koice extends EventEmitter2 {
                     .kill("SIGKILL");
                 delete this.ffmpeg;
             }
-            this.client.off("event.system", this.disconnectionHandler);
             await this.client.API.voice.leave(this.TARGET_CHANNEL_ID);
+            if (unexpected)
+                this.logger.warn(
+                    "Ending stream unexpectedly: " +
+                        (reason?.toString().split("\n") || "unknown reason")
+                );
+            else
+                this.logger.debug(
+                    "Ended stream: " +
+                        (reason?.toString().split("\n") || "unknown reason")
+                );
+            this.logger.debug(
+                `started streaming with${this.fileHead ? "" : "out"} file head`
+            );
             return true;
         }
         return false;
     }
-    private async retry(reason: any) {
-        if (await this.endStream()) {
+    private async retry(reason?: any) {
+        if (await this.endStream(reason, false)) {
             this.startStream();
         }
     }
@@ -254,7 +272,7 @@ export class Koice extends EventEmitter2 {
      * @param reason The reason to close.
      */
     public async close(reason?: any): Promise<void> {
-        if (await this.endStream()) {
+        if (await this.endStream(reason, true)) {
             this.emit("close", reason);
         }
     }
