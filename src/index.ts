@@ -4,6 +4,7 @@ import { Readable as ReadableStream } from "stream";
 import Kasumi, { SystemMessageEvent } from "kasumi.js";
 import EventEmitter2 from "eventemitter2";
 import Logger from "bunyan";
+import schedule from "node-schedule";
 
 export interface RawEmisions {
     close: (event?: any) => void;
@@ -36,7 +37,7 @@ export interface IUserLeaveVoiceChannelEventExtra {
 
 export class Koice extends EventEmitter2 {
     private client: Kasumi;
-    private targetChannelId: string;
+    private readonly TARGET_CHANNEL_ID: string;
     private logger: Logger;
 
     private stream: ReadableStream = new ReadableStream({
@@ -99,7 +100,7 @@ export class Koice extends EventEmitter2 {
     ) {
         super();
         this.client = client;
-        this.targetChannelId = targetChannelId;
+        this.TARGET_CHANNEL_ID = targetChannelId;
         if (binary) this.ffPath = binary;
         ffmpeg.setFfmpegPath(this.ffPath);
 
@@ -140,17 +141,28 @@ export class Koice extends EventEmitter2 {
         if (await self.startStream()) return self;
         else return null;
     }
+    private keepAliveSchedule?: schedule.Job;
+    private keepAliveTask() {
+        if (this.keepAliveSchedule) schedule.cancelJob(this.keepAliveSchedule);
+        this.keepAliveSchedule = schedule.scheduleJob(
+            "*/45 * * * * *",
+            async () => {
+                await this.client.API.voice.keepAlive(this.TARGET_CHANNEL_ID);
+            }
+        );
+    }
     private async startStream(): Promise<boolean> {
         this.client.on("event.system", this.disconnectionHandler);
         this.isClose = false;
 
         const { data, err } = await this.client.API.voice.join(
-            this.targetChannelId,
+            this.TARGET_CHANNEL_ID,
             {
                 password: this.streamOptions?.password,
                 rtcpMux: this.streamOptions?.rtcpMux,
             }
         );
+        this.keepAliveTask();
         if (err) return false;
 
         this.ffmpeg = ffmpeg().addOption("-hide_banner", "-loglevel fatal");
@@ -225,7 +237,7 @@ export class Koice extends EventEmitter2 {
                 delete this.ffmpeg;
             }
             this.client.off("event.system", this.disconnectionHandler);
-            await this.client.API.voice.leave(this.targetChannelId);
+            await this.client.API.voice.leave(this.TARGET_CHANNEL_ID);
             return true;
         }
         return false;
