@@ -253,9 +253,6 @@ export class Koice extends EventEmitter2 {
                     "Ended stream: " +
                         (reason?.toString().split("\n") || "unknown reason")
                 );
-            this.logger.debug(
-                `started streaming with${this.fileHead ? "" : "out"} file head`
-            );
             return true;
         }
         return false;
