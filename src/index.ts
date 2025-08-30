@@ -260,10 +260,14 @@ export class Koice extends EventEmitter2 {
         }
         return false;
     }
+    private retryLock: boolean = false;
     private async retry(reason?: any) {
+        if (this.isClose || this.retryLock) return;
+        this.retryLock = true;
         if (await this.endStream(reason, false)) {
-            this.startStream();
+            await this.startStream();
         }
+        this.retryLock = false;
     }
 
     /**
