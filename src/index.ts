@@ -118,7 +118,7 @@ export class Koice extends EventEmitter2 {
     public setStreamOptions(options?: IStreamOptions) {
         this.streamOptions = options;
         if (this.streamOptions && this.streamOptions.rtcpMux == undefined) {
-            this.streamOptions.rtcpMux = true;
+            this.streamOptions.rtcpMux = false;
         }
     }
 
