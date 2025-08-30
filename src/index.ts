@@ -227,6 +227,7 @@ export class Koice extends EventEmitter2 {
         reason?: any,
         unexpected = false
     ): Promise<boolean> {
+        // Only end the stream if it is not already closed.
         if (!this.isClose) {
             this.isClose = true;
             this.client.off("event.system", this.disconnectionHandler);
@@ -274,7 +275,12 @@ export class Koice extends EventEmitter2 {
      * @param reason The reason to close.
      */
     public async close(reason?: any): Promise<void> {
+        if (this.keepAliveSchedule) {
+            this.keepAliveSchedule.cancel();
+            delete this.keepAliveSchedule;
+        }
         if (await this.endStream(reason, true)) {
+            // Only emit close event if the stream was not already closed.
             this.emit("close", reason);
         }
     }
