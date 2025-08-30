@@ -162,8 +162,9 @@ export class Koice extends EventEmitter2 {
                 rtcpMux: this.streamOptions?.rtcpMux,
             }
         );
-        this.keepAliveTask();
         if (err) return false;
+
+        this.keepAliveTask();
 
         this.ffmpeg = ffmpeg();
         this.stream = new ReadableStream({
