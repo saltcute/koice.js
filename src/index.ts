@@ -4,7 +4,6 @@ import { Readable as ReadableStream } from "stream";
 import Kasumi, { SystemMessageEvent } from "kasumi.js";
 import EventEmitter2 from "eventemitter2";
 import Logger from "bunyan";
-import schedule from "node-schedule";
 
 export interface RawEmisions {
     close: (event?: any) => void;
@@ -141,15 +140,13 @@ export class Koice extends EventEmitter2 {
         if (await self.startStream()) return self;
         else return null;
     }
-    private keepAliveSchedule?: schedule.Job;
-    private keepAliveTask() {
-        if (this.keepAliveSchedule) schedule.cancelJob(this.keepAliveSchedule);
-        this.keepAliveSchedule = schedule.scheduleJob(
-            "*/45 * * * * *",
-            async () => {
-                await this.client.API.voice.keepAlive(this.TARGET_CHANNEL_ID);
-            }
-        );
+    private keepAliveTimer?: NodeJS.Timeout;
+    private async keepAliveTask() {
+        if (this.keepAliveTimer) clearTimeout(this.keepAliveTimer);
+        await this.client.API.voice.keepAlive(this.TARGET_CHANNEL_ID);
+        this.keepAliveTimer = setTimeout(async () => {
+            this.keepAliveTask();
+        }, 45 * 1000);
     }
     private async startStream(): Promise<boolean> {
         this.client.on("event.system", this.disconnectionHandler);
@@ -164,7 +161,7 @@ export class Koice extends EventEmitter2 {
         );
         if (err) return false;
 
-        this.keepAliveTask();
+        await this.keepAliveTask();
 
         this.ffmpeg = ffmpeg();
         this.stream = new ReadableStream({
@@ -199,18 +196,11 @@ export class Koice extends EventEmitter2 {
             )
             .removeAllListeners("error")
             .removeAllListeners("end")
-            .removeAllListeners("exit")
-            .on("exit", () => {
-                this.logger.debug("ffmpeg process exited");
-            })
             .on("error", (e) => {
                 this.retry(e);
             })
             .on("end", (e) => {
-                this.retry(e);
-            })
-            .on("close", (e) => {
-                this.retry(e);
+                this.logger.debug("ffmpeg process exited");
             });
         return true;
     }
@@ -233,12 +223,8 @@ export class Koice extends EventEmitter2 {
             this.client.off("event.system", this.disconnectionHandler);
             if (this.ffmpeg) {
                 this.ffmpeg
-                    .removeAllListeners("exit")
-                    .removeAllListeners("close")
                     .removeAllListeners("error")
                     .removeAllListeners("end")
-                    .on("exit", () => {})
-                    .on("close", () => {})
                     .on("error", () => {})
                     .on("end", () => {})
                     .kill("SIGKILL");
@@ -275,9 +261,9 @@ export class Koice extends EventEmitter2 {
      * @param reason The reason to close.
      */
     public async close(reason?: any): Promise<void> {
-        if (this.keepAliveSchedule) {
-            this.keepAliveSchedule.cancel();
-            delete this.keepAliveSchedule;
+        if (this.keepAliveTimer) {
+            clearTimeout(this.keepAliveTimer);
+            delete this.keepAliveTimer;
         }
         if (await this.endStream(reason, true)) {
             // Only emit close event if the stream was not already closed.
