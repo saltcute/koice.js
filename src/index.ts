@@ -208,7 +208,10 @@ export class Koice extends EventEmitter2 {
         if (event.rawEvent.extra.type == "exited_channel") {
             const extra: IUserLeaveVoiceChannelEventExtra =
                 event.rawEvent.extra;
-            if (extra.body.user_id == this.client.me.userId) {
+            if (
+                extra.body.user_id == this.client.me.userId &&
+                extra.body.channel_id == this.TARGET_CHANNEL_ID
+            ) {
                 this.retry("Recieved exit voice channel event unexpectedly");
             }
         }
